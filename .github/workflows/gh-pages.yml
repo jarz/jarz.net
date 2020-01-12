@@ -1,4 +1,4 @@
-name: github pages
+name: Build and deploy to gh-pages
 
 on:
   push:
@@ -28,3 +28,10 @@ jobs:
         ACTIONS_DEPLOY_KEY: ${{ secrets.ACTIONS_DEPLOY_KEY }}
         PUBLISH_BRANCH: gh-pages
         PUBLISH_DIR: ./public
+    
+    - name: Purge Cloudflare cache
+      uses: jakejarvis/cloudflare-purge-action@master
+      env:
+        # Zone is required by both authentication methods
+        CLOUDFLARE_ZONE: ${{ secrets.CLOUDFLARE_ZONE }}
+        CLOUDFLARE_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
