@@ -50,6 +50,9 @@ pygmentscodefencesguesssyntax = true
     # Custom JS
     custom_js = []
 
+    favicon_32 = "/images/favicon_32.png"
+    favicon_16 = "/images/favicon_16.png"
+
 [taxonomies]
   category = "categories"
   series = "series"
