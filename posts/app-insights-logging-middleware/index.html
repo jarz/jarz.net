@@ -1,0 +1,283 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><meta name=author content="Tim Jarzombek"><meta name=description content="Tim Jarzombek's personal website"><meta name=keywords content="blog,developer,personal"><meta name=twitter:card content="summary"><meta name=twitter:title content="Azure Application Insights payload logging in ASP.NET Core 3.1"><meta name=twitter:description content="Changes in the ASP.NET Core pipeline mean middleware is needed"><meta property="og:title" content="Azure Application Insights payload logging in ASP.NET Core 3.1"><meta property="og:description" content="Changes in the ASP.NET Core pipeline mean middleware is needed"><meta property="og:type" content="article"><meta property="og:url" content="https://jarz.net/posts/app-insights-logging-middleware/"><meta property="article:published_time" content="2020-01-21T20:54:18-05:00"><meta property="article:modified_time" content="2020-01-21T20:54:18-05:00"><base href=https://jarz.net/posts/app-insights-logging-middleware/><title>Azure Application Insights payload logging in ASP.NET Core 3.1 · Tim Jarzombek</title><link rel=canonical href=https://jarz.net/posts/app-insights-logging-middleware/><link href="https://fonts.googleapis.com/css?family=Lato:400,700%7CMerriweather:300,700%7CSource+Code+Pro:400,700" rel=stylesheet><link rel=stylesheet href=https://use.fontawesome.com/releases/v5.11.2/css/all.css integrity=sha384-KA6wR/X5RY4zFAHpv/CnoG2UW1uogYfdnP67Uv7eULvTveboZJg0qUpmJZb5VqzN crossorigin=anonymous><link rel=stylesheet href=https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css integrity="sha256-l85OmPOjvil/SOvVt3HnSSjzF1TUMyT9eV0c2BzEGzU=" crossorigin=anonymous><link rel=stylesheet href=https://jarz.net/css/coder.min.28d751104f30c16da1aa1bb04015cbe662cacfe0d1b01af4f2240ad58580069c.css integrity="sha256-KNdREE8wwW2hqhuwQBXL5mLKz+DRsBr08iQK1YWABpw=" crossorigin=anonymous media=screen><link rel=stylesheet href=https://jarz.net/styles/my.css><link rel=icon type=image/png href=https://jarz.net/images/favicon_32.png sizes=32x32><link rel=icon type=image/png href=https://jarz.net/images/favicon_16.png sizes=16x16><meta name=generator content="Hugo 0.61.0"></head><body class=colorscheme-light><main class=wrapper><nav class=navigation><section class=container><a class=navigation-title href=https://jarz.net/>Tim Jarzombek</a>
+<input type=checkbox id=menu-toggle>
+<label class="menu-button float-right" for=menu-toggle><i class="fas fa-bars"></i></label><ul class=navigation-list><li class=navigation-item><a class=navigation-link href=https://jarz.net/about/>About</a></li><li class=navigation-item><a class=navigation-link href=https://jarz.net/speaking/>Speaking</a></li><li class=navigation-item><a class=navigation-link href=https://jarz.net/posts/>Blog</a></li></ul></section></nav><div class=content><section class="container post"><article><header><div class=post-title><h1 class=title>Azure Application Insights payload logging in ASP.NET Core 3.1</h1></div><div class=post-meta><div class=date><span class=posted-on><i class="fas fa-calendar"></i><time datetime=2020-01-21T20:54:18-05:00>January 21, 2020</time></span>
+<span class=reading-time><i class="fas fa-clock"></i>5 minutes read</span></div><div class=tags><i class="fas fa-tag"></i><a href=https://jarz.net/tags/application-insights/>Application Insights</a>
+<span class=separator>•</span>
+<a href=https://jarz.net/tags/asp.net-core/>ASP.NET Core</a></div></div></header><div><p>At the beginning of January I presented on <a href=https://docs.microsoft.com/en-us/azure/azure-monitor/app/app-insights-overview>Azure Application Insights</a> at CodeMash. While building my <a href=https://github.com/jarz/AlbumViewerVNext/tree/test/add-ai>demo</a> against an ASP.NET Core 3.1 project, I couldn't reuse an existing <em>TelemetryInitializer</em> to log request bodies for troubleshooting. A <em>TelemetryInitializer</em> allows developers to add or modify properties on telemetry sent to Application Insights; <a href=https://docs.microsoft.com/en-us/azure/azure-monitor/app/api-filtering-sampling#addmodify-properties-itelemetryinitializer>Microsoft's example</a> overrides the default success logic such that 400-level errors aren't considered failures (the default in Application Insights). Changes made in ASP.NET Core 3.0 no longer allowed me to use this:</p><div class=highlight><div style=color:#e5e5e5;background-color:#000;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=color:#e5e5e5;background-color:#000;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#727272"> 1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272"> 2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272"> 3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272"> 4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272"> 5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272"> 6
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272"> 7
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272"> 8
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272"> 9
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">10
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">11
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">12
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">13
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">14
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">15
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">16
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">17
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">18
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">19
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">20
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">21
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">22
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">23
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">24
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">25
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">26
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">27
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">28
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">29
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">30
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">31
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">32
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">33
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">34
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">35
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">36
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">37
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=color:#e5e5e5;background-color:#000;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-cs data-lang=cs><span style=color:#fff;font-weight:700>public</span> <span style=color:#fff;font-weight:700>class</span> RequestBodyInitializer : ITelemetryInitializer
+{
+    <span style=color:#fff;font-weight:700>readonly</span> IHttpContextAccessor httpContextAccessor;
+
+    <span style=color:#fff;font-weight:700>public</span> RequestBodyInitializer(IHttpContextAccessor httpContextAccessor)
+    {
+        <span style=color:#fff;font-weight:700>this</span>.httpContextAccessor = httpContextAccessor;
+    }
+
+    <span style=color:#fff;font-weight:700>public</span> <span style=color:#fff;font-weight:700>void</span> Initialize(ITelemetry telemetry)
+    {
+        <span style=color:#fff;font-weight:700>if</span> (telemetry <span style=color:#fff;font-weight:700>is</span> RequestTelemetry requestTelemetry)
+        {
+            <span style=color:#fff;font-weight:700>if</span> ((httpContextAccessor.HttpContext.Request.Method == HttpMethods.Post ||
+                 httpContextAccessor.HttpContext.Request.Method == HttpMethods.Put) &amp;&amp;
+                 httpContextAccessor.HttpContext.Request.Body.CanRead)
+            {
+                <span style=color:#fff;font-weight:700>const</span> <span style=color:#fff;font-weight:700>string</span> jsonBody = <span style=color:#0ff;font-weight:700>&#34;JsonBody&#34;</span>;
+
+                <span style=color:#fff;font-weight:700>if</span> (requestTelemetry.Properties.ContainsKey(jsonBody))
+                {
+                    <span style=color:#fff;font-weight:700>return</span>;
+                }
+
+                <span style=color:#007f7f>// Allows re-usage of the stream
+</span><span style=color:#007f7f></span>                httpContextAccessor.HttpContext.Request.EnableRewind(); <span style=color:#007f7f>// .EnableBuffering() in ASP.NET Core 3
+</span><span style=color:#007f7f></span>
+                <span style=color:#fff;font-weight:700>var</span> stream = <span style=color:#fff;font-weight:700>new</span> StreamReader(httpContextAccessor.HttpContext.Request.Body);
+                <span style=color:#fff;font-weight:700>var</span> body = stream.ReadToEnd();
+
+                <span style=color:#007f7f>// Reset the stream so data is not lost
+</span><span style=color:#007f7f></span>                httpContextAccessor.HttpContext.Request.Body.Position = <span style=color:#ff0;font-weight:700>0</span>;
+                requestTelemetry.Properties.Add(jsonBody, body);
+            }
+        }
+    }
+}
+</code></pre></td></tr></table></div></div><p><a href=https://stackoverflow.com/a/50024016>(Source Stack Overflow answer)</a></p><p>In ASP.NET Core 1.x and 2.x, this would add a new property named <em>JsonBody</em> to the telemetry, populated with the associated request's body content. The telemetry would be</p><p>After upgrading to ASP.NET Core 3 and switching to <code>EnableBuffering()</code>, the next exception is a bit concerning: <em><strong>System.InvalidOperationException</strong>: &lsquo;Synchronous operations are disallowed. Call ReadAsync or set AllowSynchronousIO to true instead.'</em> One of the bigger breaking changes in ASP.NET Core 3.0 was <a href=https://docs.microsoft.com/en-us/dotnet/core/compatibility/2.2-3.0#http-synchronous-io-disabled-in-all-servers>disabling synchronous server IO by default</a>. While Microsoft provides a mitigation, I've still run into issues with disposed objects afterward. It's time for a different approach.</p><h2 id=writing-custom-aspnet-core-custom-middleware>Writing custom ASP.NET Core custom middleware</h2><p>Instead of continuing to fight exceptions, I decided to write custom middleware to snag the request body. <a href="https://docs.microsoft.com/en-us/aspnet/core/fundamentals/middleware/?view=aspnetcore-3.1"><em>Middleware</em></a> is all of the code that runs between the server receiving a request and returning a response. We mainly just add a few lines to our <code>Startup</code> class (like <code>app.UseAuthentication()</code>) and utilize built-in middleware from ASP.NET Core. However, we can easily <a href="https://docs.microsoft.com/en-us/aspnet/core/fundamentals/middleware/write?view=aspnetcore-3.1">write our own middleware code</a> to be run for every request and response.</p><p>If writing a class for custom middleware, there's no <em>required*</em> interface or abstract class to implement. Instead, the class must:</p><ul><li>Have a public constructor that accepts a <a href=https://docs.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.requestdelegate><code>RequestDelegate</code></a>.<ul><li>The <code>RequestDelegate</code> is the next piece of middleware to be executed after yours.</li></ul></li><li>Implement a public method named either <code>Invoke</code> or <code>InvokeAsync</code>.<ul><li>It must return a <code>Task</code>, no matter the name.</li><li>It's first parameter must be <code>HttpContext</code>.</li><li>Any additional parameters will be populated by your dependency injection container.</li></ul></li></ul><p><em>*Note: ASP.NET Core 2.1 added an <a href="https://docs.microsoft.com/en-us/aspnet/core/fundamentals/middleware/extensibility?view=aspnetcore-3.1"><code>IMiddleware</code> interface</a> that can be implemented.</em></p><p>The pattern to implement is straightforward:</p><div class=highlight><pre style=color:#e5e5e5;background-color:#000;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-cs data-lang=cs><span style=color:#fff;font-weight:700>public</span> <span style=color:#fff;font-weight:700>async</span> Task InvokeAsync(HttpContext context, RequestDelegate next)
+{
+    <span style=color:#007f7f>// Incoming request
+</span><span style=color:#007f7f></span>
+    <span style=color:#fff;font-weight:700>await</span> next(context);    <span style=color:#007f7f>// Call the next middleware
+</span><span style=color:#007f7f></span>
+    <span style=color:#007f7f>// Outgoing response
+</span><span style=color:#007f7f></span>}
+</code></pre></div><p>The method begins with a client HTTP request. If the middleware sets up anything necessary for the rest of the pipeline (authentication, authorization), it would be implemented at the beginning. Afterward, the method calls <code>await next(context)</code> to continue processing the request, potentially making it's way to a controller. Control returns as the stack is rewinding and a response is on the way back to the client.</p><p>Knowing this, we can write our own middleware to capture the request body before it's read downstream:</p><div class=highlight><div style=color:#e5e5e5;background-color:#000;-moz-tab-size:4;-o-tab-size:4;tab-size:4><table style=border-spacing:0;padding:0;margin:0;border:0;width:auto;overflow:auto;display:block><tr><td style=vertical-align:top;padding:0;margin:0;border:0><pre style=color:#e5e5e5;background-color:#000;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code><span style="margin-right:.4em;padding:0 .4em;color:#727272"> 1
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272"> 2
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272"> 3
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272"> 4
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272"> 5
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272"> 6
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272"> 7
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272"> 8
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272"> 9
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">10
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">11
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">12
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">13
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">14
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">15
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">16
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">17
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">18
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">19
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">20
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">21
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">22
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">23
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">24
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">25
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">26
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">27
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">28
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">29
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">30
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">31
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">32
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">33
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">34
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">35
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">36
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">37
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">38
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">39
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">40
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">41
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">42
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">43
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">44
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">45
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">46
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">47
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">48
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">49
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">50
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">51
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">52
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">53
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">54
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">55
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">56
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">57
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">58
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">59
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">60
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">61
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">62
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">63
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">64
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">65
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">66
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">67
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">68
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">69
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">70
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">71
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">72
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">73
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">74
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">75
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">76
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">77
+</span><span style="margin-right:.4em;padding:0 .4em;color:#727272">78
+</span></code></pre></td><td style=vertical-align:top;padding:0;margin:0;border:0;width:100%><pre style=color:#e5e5e5;background-color:#000;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-cs data-lang=cs><span style=color:#fff;font-weight:700>public</span> <span style=color:#fff;font-weight:700>class</span> ApplicationInsightsLoggingMiddleware : IMiddleware
+{
+    <span style=color:#fff;font-weight:700>private</span> TelemetryClient TelemetryClient { <span style=color:#fff;font-weight:700>get</span>; }
+
+    <span style=color:#fff;font-weight:700>public</span> ApplicationInsightsLoggingMiddleware(TelemetryClient telemetryClient)
+    {
+        TelemetryClient = telemetryClient;
+    }
+
+    <span style=color:#fff;font-weight:700>public</span> <span style=color:#fff;font-weight:700>async</span> Task InvokeAsync(HttpContext context, RequestDelegate next)
+    {
+        <span style=color:#007f7f>// Inbound (before the controller)
+</span><span style=color:#007f7f></span>        <span style=color:#fff;font-weight:700>var</span> request = context?.Request;
+        <span style=color:#fff;font-weight:700>if</span> (request == <span style=color:#fff;font-weight:700>null</span>)
+        {
+            <span style=color:#fff;font-weight:700>await</span> next(context);
+            <span style=color:#fff;font-weight:700>return</span>;
+        }
+
+        request.EnableBuffering();  <span style=color:#007f7f>// Allows us to reuse the existing Request.Body
+</span><span style=color:#007f7f></span>
+        <span style=color:#007f7f>// Swap the original Response.Body stream with one we can read / seek
+</span><span style=color:#007f7f></span>        <span style=color:#fff;font-weight:700>var</span> originalResponseBody = context.Response.Body;
+        <span style=color:#fff;font-weight:700>using</span> var replacementResponseBody = <span style=color:#fff;font-weight:700>new</span> MemoryStream();
+        context.Response.Body = replacementResponseBody;
+
+        <span style=color:#fff;font-weight:700>await</span> next(context); <span style=color:#007f7f>// Continue processing (additional middleware, controller, etc.)
+</span><span style=color:#007f7f></span>
+        <span style=color:#007f7f>// Outbound (after the controller)
+</span><span style=color:#007f7f></span>        replacementResponseBody.Position = <span style=color:#ff0;font-weight:700>0</span>;
+
+        <span style=color:#007f7f>// Copy the response body to the original stream
+</span><span style=color:#007f7f></span>        <span style=color:#fff;font-weight:700>await</span> replacementResponseBody.CopyToAsync(originalResponseBody).ConfigureAwait(<span style=color:#fff;font-weight:700>false</span>);
+        context.Response.Body = originalResponseBody;
+
+        <span style=color:#fff;font-weight:700>var</span> response = context.Response;
+        <span style=color:#fff;font-weight:700>if</span> (response.StatusCode &lt; <span style=color:#ff0;font-weight:700>5</span><span style=color:#ff0;font-weight:700>0</span><span style=color:#ff0;font-weight:700>0</span>)
+        {
+            <span style=color:#fff;font-weight:700>return</span>;
+        }
+
+        <span style=color:#fff;font-weight:700>var</span> requestTelemetry = context.Features.Get&lt;RequestTelemetry&gt;();
+        <span style=color:#fff;font-weight:700>if</span> (requestTelemetry == <span style=color:#fff;font-weight:700>null</span>)
+        {
+            <span style=color:#fff;font-weight:700>return</span>;
+        }
+
+        <span style=color:#fff;font-weight:700>if</span> (request.Body.CanRead)
+        {
+            <span style=color:#fff;font-weight:700>var</span> requestBodyString = <span style=color:#fff;font-weight:700>await</span> ReadBodyStream(request.Body).ConfigureAwait(<span style=color:#fff;font-weight:700>false</span>);
+            requestTelemetry.Properties.Add(<span style=color:#0ff;font-weight:700>&#34;RequestBody&#34;</span>, requestBodyString);  <span style=color:#007f7f>// limit: 8192 characters
+</span><span style=color:#007f7f></span>            TelemetryClient.TrackTrace(requestBodyString);
+        }
+
+        <span style=color:#fff;font-weight:700>if</span> (replacementResponseBody.CanRead)
+        {
+            <span style=color:#fff;font-weight:700>var</span> responseBodyString = <span style=color:#fff;font-weight:700>await</span> ReadBodyStream(replacementResponseBody).ConfigureAwait(<span style=color:#fff;font-weight:700>false</span>);
+            requestTelemetry.Properties.Add(<span style=color:#0ff;font-weight:700>&#34;ResponseBody&#34;</span>, responseBodyString);
+            TelemetryClient.TrackTrace(responseBodyString);
+        }
+    }
+
+    <span style=color:#fff;font-weight:700>private</span> <span style=color:#fff;font-weight:700>async</span> Task&lt;<span style=color:#fff;font-weight:700>string</span>&gt; ReadBodyStream(Stream body)
+    {
+        <span style=color:#fff;font-weight:700>if</span> (body.Length == <span style=color:#ff0;font-weight:700>0</span>)
+        {
+            <span style=color:#fff;font-weight:700>return</span> <span style=color:#fff;font-weight:700>null</span>;
+        }
+
+        body.Position = <span style=color:#ff0;font-weight:700>0</span>;
+
+        <span style=color:#fff;font-weight:700>using</span> var reader = <span style=color:#fff;font-weight:700>new</span> StreamReader(body, leaveOpen: <span style=color:#fff;font-weight:700>true</span>);
+        <span style=color:#fff;font-weight:700>var</span> bodyString = <span style=color:#fff;font-weight:700>await</span> reader.ReadToEndAsync().ConfigureAwait(<span style=color:#fff;font-weight:700>false</span>);
+        body.Position = <span style=color:#ff0;font-weight:700>0</span>;
+
+        <span style=color:#fff;font-weight:700>return</span> bodyString;
+    }
+}
+</code></pre></td></tr></table></div></div><p>This version goes beyond the original <em>ITelemetryInitializer</em> implementation, logging both the request and response bodies if a server error occurred. It also uses the <code>TrackTrace</code> method, allowing for four times the data to be sent to Application Insights. <strong>An important note</strong>: this doesn't discrimate based on endpoint or request/response body content; be careful of logging sensitive data in a production environment.</p><p>Finally, two changes are made in the <em>Startup</em> class in order to run the middleware.</p><p>First, register the middleware with the dependency injection container in the <code>ConfigureServices</code> method:</p><div class=highlight><pre style=color:#e5e5e5;background-color:#000;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-cs data-lang=cs><span style=color:#fff;font-weight:700>public</span> <span style=color:#fff;font-weight:700>void</span> ConfigureServices(IServiceCollection services)
+{
+    ...
+    services.AddTransient&lt;ApplicationInsightsLoggingMiddleware&gt;(); 
+    ...
+}
+</code></pre></div><p>Second, register the middleware in the request processing pipeline:</p><div class=highlight><pre style=color:#e5e5e5;background-color:#000;-moz-tab-size:4;-o-tab-size:4;tab-size:4><code class=language-cs data-lang=cs><span style=color:#fff;font-weight:700>public</span> <span style=color:#fff;font-weight:700>void</span> Configure(IApplicationBuilder app, IWebHostEnvironment env)
+{
+    <span style=color:#fff;font-weight:700>if</span> (env.IsDevelopment())
+    {
+        app.UseDeveloperExceptionPage();
+    }
+    <span style=color:#fff;font-weight:700>else</span>
+    {
+        app.UseExceptionHandler(<span style=color:#0ff;font-weight:700>&#34;/Error&#34;</span>);
+    }
+
+    app.UseHttpsRedirection();
+    app.UseStaticFiles();
+
+    app.UseRouting();
+    app.UseCors();
+
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    <span style=color:#007f7f>// Placement matters!
+</span><span style=color:#007f7f></span>    <span style=color:#007f7f>// Place custom middleware after security...
+</span><span style=color:#007f7f></span>    app.UseMiddleware&lt;ApplicationInsightsLoggingMiddleware&gt;();
+
+    <span style=color:#007f7f>// ...but before specifying endpoints  
+</span><span style=color:#007f7f></span>    app.UseEndpoints(endpoints =&gt;
+    {
+        endpoints.MapRazorPages();
+    });
+}
+</code></pre></div><p>Middleware will execute in the <a href="https://docs.microsoft.com/en-us/aspnet/core/fundamentals/middleware/?view=aspnetcore-3.1#middleware-order">order of registration</a>. It's important to register security middleware correctly. The <code>ApplicationInsightsLoggingMiddleware</code> will only execute after successful processing of the built-in CORS, authentication, and authorization middleware.</p></div><footer></footer></article></section></div><footer class=footer><section class=container>© 2020
+Tim Jarzombek
+·
+Powered by <a href=https://gohugo.io/>Hugo</a> & <a href=https://github.com/luizdepra/hugo-coder/>Coder</a>.</section></footer></main></body></html>
