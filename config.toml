@@ -88,3 +88,8 @@ pygmentscodefencesguesssyntax = true
     name = "Speaking"
     weight = 2
     url = "speaking/"
+
+[[menus.main]]
+    name = "Blog"
+    weight = 3
+    url = "posts/"
