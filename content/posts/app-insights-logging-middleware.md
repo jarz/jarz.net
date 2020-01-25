@@ -52,7 +52,7 @@ public class RequestBodyInitializer : ITelemetryInitializer
 ```
 [(Source Stack Overflow answer)](https://stackoverflow.com/a/50024016)
 
-In ASP.NET Core 1.x and 2.x, this would add a new property named _JsonBody_ to the telemetry, populated with the associated request's body content. The telemetry would be 
+In ASP.NET Core 1.x and 2.x, this would add a new property named _JsonBody_ to the telemetry, populated with the associated request's body content. The telemetry would be uploaded to Application Insights, visible on the request and associated with additional server-side processing, such as database requests.
 
 After upgrading to ASP.NET Core 3 and switching to `EnableBuffering()`, the next exception is a bit concerning: _**System.InvalidOperationException**: 'Synchronous operations are disallowed. Call ReadAsync or set AllowSynchronousIO to true instead.'_ One of the bigger breaking changes in ASP.NET Core 3.0 was [disabling synchronous server IO by default](https://docs.microsoft.com/en-us/dotnet/core/compatibility/2.2-3.0#http-synchronous-io-disabled-in-all-servers
 ). While Microsoft provides a mitigation, I've still run into issues with disposed objects afterward. It's time for a different approach.
@@ -61,7 +61,7 @@ After upgrading to ASP.NET Core 3 and switching to `EnableBuffering()`, the next
 
 Instead of continuing to fight exceptions, I decided to write custom middleware to snag the request body. [_Middleware_](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/middleware/?view=aspnetcore-3.1) is all of the code that runs between the server receiving a request and returning a response. We mainly just add a few lines to our `Startup` class (like `app.UseAuthentication()`) and utilize built-in middleware from ASP.NET Core. However, we can easily [write our own middleware code](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/middleware/write?view=aspnetcore-3.1) to be run for every request and response.
 
-If writing a class for custom middleware, there's no _required\*_ interface or abstract class to implement. Instead, the class must:
+When writing a class for custom middleware, there's no _required\*_ interface or abstract class to implement. Instead, the class must:
 - Have a public constructor that accepts a [`RequestDelegate`](https://docs.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.http.requestdelegate).
   - The `RequestDelegate` is the next piece of middleware to be executed after yours.
 - Implement a public method named either `Invoke` or `InvokeAsync`.
