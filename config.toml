@@ -21,7 +21,7 @@ pygmentscodefencesguesssyntax = true
     keywords = "blog,developer,personal"
     info = "Software Developer in Indianapolis, Indiana"
     avatarurl = "images/avatar.jpg"
-    #footercontent = "Enter a text here."
+    footercontent = "<script data-goatcounter=\"https://jarz.goatcounter.com/count\" async src=\"//gc.zgo.at/count.js\"></script>"
 
     dateformat = "January 2, 2006"
 
