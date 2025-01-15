@@ -6,7 +6,6 @@ theme = "hugo-coder"
 languagecode = "en"
 defaultcontentlanguage = "en"
 
-paginate = 20
 canonifyurls = true
 
 pygmentsstyle = "b2"
@@ -69,14 +68,19 @@ pygmentscodefencesguesssyntax = true
     weight = 2
     url = "https://twitter.com/tim_jarz/"
 [[params.social]]
+    name = "Bluesky"
+    icon = "fab fa-bluesky"
+    weight = 3
+    url = "https://bsky.app/profile/jarz.net"
+[[params.social]]
     name = "LinkedIn"
     icon = "fab fa-linkedin"
-    weight = 3
+    weight = 4
     url = "https://www.linkedin.com/in/tjarzombek/"
 [[params.social]]
     name = "Email"
     icon = "fa fa-envelope"
-    weight = 4
+    weight = 5
     url = "mailto:tim@jarz.net"
 
 [[menus.main]]
